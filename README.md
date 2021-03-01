@@ -3,7 +3,7 @@ CV Praktikum
 
 Backgroundsubtractor2.py:
 
-  -Manually edit the link towards a video and a folder where the annotation for that video exist Tracking('...',0.5,'...)
+  -Manually edit the link towards a video and a folder where the annotation for that video exist (Constructor of class 'Tracking')
   
   -run with python
   

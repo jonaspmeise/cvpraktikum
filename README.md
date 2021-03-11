@@ -1,12 +1,4 @@
 # cvpraktikum
 CV Praktikum
 
-Backgroundsubtractor2.py:
-
-  -Manually edit the link towards a video and a folder where the annotation for that video exist (Constructor of class 'Tracking')
-  
-  -run with python
-  
-Features:
-
-  -use your mouse to drag windows into the main frame window to "blacken" out a region, no movement will be detected in this region.
+TrackingPipeline: abstract class for general tracking purposes regarding the CV Praktikum. For compiling, create a sub-class of TrackingPipeline as shown in TestTracking and define the method extractFrame(self, frame) so that it returns a key-value-dictionary for bounding boxes (check source code for more instructions).

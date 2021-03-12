@@ -145,7 +145,7 @@ class TrackingPipeline(ABC):
                     #draw the bounding box from the annotation into the frame
                     frame = self.drawBoundingBoxesForAnimals(userGeneratedAnnotation, frame, True)
                     
-                if annotationForCurrentFrame is not None or userGeneratedAnnotation is not None:
+                if annotationForCurrentFrame is not None:
                     currentError = self.calculateError(annotationForCurrentFrame, userGeneratedAnnotation)
                     self.frameErrorDic[self.frameCounter] = currentError
                     

@@ -5,6 +5,7 @@ import cv2
 import xml.etree.ElementTree as ET
 import os
 import re
+from timeit import default_timer as timer
 
 '''
 ---Pipeline für Mara/Ameisenbär-Tracking als abstrakte Klasse---
@@ -80,6 +81,7 @@ class TrackingPipeline(ABC):
             return frame
         else:
             print('Error while fetching!')
+            return None
     
     #returns dictionary with animal names as keys ('mara','mara1','mara2','baer') for a given annotation (of a single frame)
     #values in the dictionary are bounding box informations for given annotated frame: x_min, x_max, y_min, y_max
@@ -122,7 +124,9 @@ class TrackingPipeline(ABC):
     
     #the main tracking process
     def runPipeline(self):
-        while(1):
+        start_pipeline = timer()
+    
+        while(1):          
             frame = self.fetchFrame()    
             
             if frame is not None:                   
@@ -151,19 +155,23 @@ class TrackingPipeline(ABC):
                     
                     print('Found error of ' + str(currentError) + ' for frame #' + str(self.frameCounter) + '.');
                 
-                cv2.imshow("Annotated Frame", frame)
-                    
+                cv2.imshow("Annotated Frame", frame)  
+                
                 k = cv2.waitKey(30) & 0xff
                 if k == 27:
                     break
+            else:
+                break
         
         #print all the error into a log file
+        end_pipeline = timer()
+        
         logFilePath = self.filePathVideo + '_' + datetime.now().strftime("%d%m%Y_%H%M%S") + '_log.txt'
-        self.writeLog(logFilePath)
+        self.writeLog(logFilePath, end_pipeline-start_pipeline)
         
         cv2.destroyAllWindows()
     
-    def writeLog(self, logFilePath):
+    def writeLog(self, logFilePath, elapsedTime):
         logFileContent = ''
         averageError = 0
         tps = 0
@@ -192,7 +200,8 @@ class TrackingPipeline(ABC):
                 + 'TruePositives=' + str(tps) + '\n'  
                 + 'FalsePositives=' + str(fps) + '\n'
                 + 'FalseNegatives=' + str(fns) + '\n'
-                + 'F-Score=' + str(2*(tps / (tps + 0.5*(fps+fns)))) + '\n\n'
+                + 'F-Score=' + str(tps / (tps + 0.5*(fps+fns))) + '\n'
+                + 'FramesPerSecond=' + str(self.frameCounter/elapsedTime) + '\n\n'
                 + logFileContent)
             
         print('Log file was written to \"' + logFilePath + '\"')   
@@ -204,16 +213,20 @@ class TrackingPipeline(ABC):
     #
     #parameter: annotationBoxes = the bounding box information of the (true) annotated labels
     #           generatedBoxes = the bounding box information of the user-generated labels
-    #           TODO:   enforceDifferenceBetweenMaras = If true, mara1 and mara2 will be differentiated and responsively get an error score
-    #                                           For false, mara1 and mara2 will not cause an mismatch
-    #                                           Mara is always matched to both mara1 and mara2
+    #           enforceDifferenceBetweenMaras = If true, mara1 and mara2 will be differentiated and responsively get an error score
+    #                                           For false, mara1 and mara2 will not cause an mismatch and their error score will be calculated (if there are mara1&mara2 bb in both pictures, match them so that they have the lowest error)
+    #
+    #                                           "mara" tag should only appear as a substitute to "mara1" or "mara2"; never in combination with one of them
+    #                                           >   If "mara" appears in both pictures, calculate the respective error
+    #                                           >   If "mara" appears in one picture and "mara1"/"mara2" in the other, match to that
+    #                                           >   If "mara" appears in one picture and "mara1","mara2" in the other, only calculate the lower error
     def calculateError(self, annotationBoxes, generatedBoxes, enforceDifferenceBetweenMaras = True):
         error = 0
         
-        #Create empty dictionaries in case they are 'None', otherwise we can't use operations on it
-        if annotationBoxes is None:
-            annotationBoxes = {}
-            
+        #if we match stuff which is not included in the pure intersection of both dictionary keys
+        additionalTruePositives = 0
+        
+        #Create empty dictionaries in case they are 'None', otherwise we can't use operations on it       
         if generatedBoxes is None:
             generatedBoxes = {}
         
@@ -221,19 +234,84 @@ class TrackingPipeline(ABC):
         falseNegatives = len(annotationBoxes) - len(truePositives)
         falsePositives = len(generatedBoxes) - len(truePositives)
         
+        print('generatedBoxes : ' + str(generatedBoxes.keys()))
+        print('true annotationBoxes : ' + str(annotationBoxes.keys()))
+        print('True Positives => ' + str(truePositives))
+        
+        #calculate the mara-mara1-mara2 mismatches manually, only if XOR appearance as keys in both bounding boxes
+        #TODO: comment: very ugly code, but I don't think there is an easy way to solve this
+        if ('mara' in annotationBoxes.keys()) != ('mara' in generatedBoxes.keys()):
+            print('Matching Mara -> Mara1/Mara2')
+            #the keys that were not matched 
+            nonMatchedKeysAnnotation = set(annotationBoxes.keys())-truePositives
+            nonMatchedKeysGenerated = set(annotationBoxes.keys())-truePositives
+            
+            #TODO: Fix this horrible coding mess
+            for current, other in ([[[nonMatchedKeysAnnotation, annotationBoxes],
+                [nonMatchedKeysGenerated, generatedBoxes]],
+                [[nonMatchedKeysGenerated, generatedBoxes],
+                [nonMatchedKeysAnnotation, annotationBoxes]]]):
+                
+                #see which set belongs to which dic to later make sure which dictionary we access
+                currentSet = current[0]
+                currentDic = current[1]
+                otherSet = other[0]
+                otherDic = other[1]
+                
+                #suche nach matching von 'mara'(in current set) -> 'mara1/2'(in other set)
+                if 'mara' in currentSet:
+                    #no idea how to fix this "elegantly" right now
+                    initialValue = 10000000000
+                    mara1error = initialValue
+                    mara2error = initialValue
+                    
+                    #see if there is mara1 or mara2 in the the other set
+                    if 'mara1' in otherDic.keys():
+                        #TODO: fix this math
+                        mara1error = self.calculateErrorBetweenBoundingBoxes(currentDic.get('mara'), otherDic.get('mara1'))
+                        print('mara1error: ' + str(mara1error))
+                    if 'mara2' in otherDic.keys(): 
+                        mara2error = self.calculateErrorBetweenBoundingBoxes(currentDic.get('mara'), otherDic.get('mara2'))
+                        print('mara2error: ' + str(mara2error))
+                     
+                    #sanity check: did we find a real bounding box error?
+                    if mara1error is not initialValue or mara2error is not initialValue:
+                        if mara1error <= mara2error:
+                            error += mara1error
+                        else:
+                            error += mara2error
+                        
+                        #since we managed to find a matching which would otherwise not be matched
+                        falseNegatives -= 1
+                        falsePositives -= 1
+                        additionalTruePositives += 1
+            
+        
         for animalKey in truePositives:
             bbAnnotation = annotationBoxes.get(animalKey)
             bbGenerated = generatedBoxes.get(animalKey)
             
-            for value_annotation, value_generated in zip(bbAnnotation, bbGenerated):
-                error += self.dist_lp(value_annotation, value_generated)
+            error += self.calculateErrorBetweenBoundingBoxes(bbAnnotation, bbGenerated)
+            
+            #for value_annotation, value_generated in zip(bbAnnotation, bbGenerated):
+            #    error += self.dist_lp(value_annotation, value_generated)
                 
-        return [error, [len(truePositives), falsePositives, falseNegatives]]
+        return [error, [len(truePositives)+additionalTruePositives, falsePositives, falseNegatives]]
     
     #calculates distance as absolute difference
     @staticmethod
     def dist_lp(p1, p2):
         return abs(p1 - p2)        
+        
+        
+    #calculates the error between 2 bounding boxes based on their descriptive attributes (x_min,x_max,y_min,y_max)
+    def calculateErrorBetweenBoundingBoxes(self, boundingBox1, boundingBox2):
+        error = 0
+            
+        for value_annotation, value_generated in zip(boundingBox1, boundingBox2):
+            error += self.dist_lp(value_annotation, value_generated)
+            
+        return error
         
     # !!! TODO: This method should implement a model which returns a dictionary of bounding boxes (refer 'to annotationToData()') for all found labels 
     #           or None, if no labels were found for the given frame

@@ -6,10 +6,11 @@ class testPipeline(TrackingPipeline):
 
     def extractFrame(self, frame):
         baerOnlyDictionary = {
-            'baer': [500, 600, 500, 600]
+            'baer': [500, 600, 500, 600],
+            'mara1': [400, 500, 400, 500]
         }
         
         return baerOnlyDictionary
         
-myTestPipeline = testPipeline('D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7.avi','D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7')
+myTestPipeline = testPipeline('D:\cv_praktikum\outside\ch04_20200908120907_analysed_part_18.avi','D:\cv_praktikum\outside\ch04_20200908120907_analysed_part_18')
 myTestPipeline.runPipeline()

@@ -147,6 +147,7 @@ class TrackingPipeline(ABC):
                 #if there are bounding boxes that the user generated
                 if userGeneratedAnnotation is not None:
                     #draw the bounding box from the annotation into the frame
+                    print('Generated annotation ' + str(userGeneratedAnnotation) + ' in frame ' + str(self.frameCounter))
                     frame = self.drawBoundingBoxesForAnimals(userGeneratedAnnotation, frame, True)
                     
                 if annotationForCurrentFrame is not None:
@@ -303,6 +304,19 @@ class TrackingPipeline(ABC):
     def dist_lp(p1, p2):
         return abs(p1 - p2)        
         
+    #first erode, then dilate a frame given a kernel size and iteration amount in order to remove noise
+    @staticmethod
+    def dilateErodeFrame(frame, kernelSize, iterations):
+        kernel = np.ones((kernelSize, kernelSize),np.uint8)
+        return cv2.dilate(cv2.erode(frame,kernel,iterations=iterations), kernel, iterations=iterations)
+        
+    @staticmethod
+    def scale_frame(frame, percentage):
+        width = int(frame.shape[1] * percentage/ 100)
+        height = int(frame.shape[0] * percentage/ 100)
+        dim = (width, height)
+        
+        return cv2.resize(frame, dim, interpolation = cv2.INTER_AREA)
         
     #calculates the error between 2 bounding boxes based on their descriptive attributes (x_min,x_max,y_min,y_max)
     def calculateErrorBetweenBoundingBoxes(self, boundingBox1, boundingBox2):

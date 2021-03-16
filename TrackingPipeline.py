@@ -28,7 +28,10 @@ Pipeline:
 class TrackingPipeline(ABC):  
     #parameters for all kind of functions
     parameters = {}
-
+    
+    #list of videos that we are going to track and their according annotation folders
+    videoAnnotationPathList = []
+    
     #boundingBoxes: dictionary with key=frame -> value=annotation as XML-Tree
     boundingBoxes = {}
     frameCounter = 0
@@ -36,6 +39,7 @@ class TrackingPipeline(ABC):
     #frameErrorDic: dictionary with key=frame -> value=[calculated error between generated/annotated bounding boxes, listOfPerformanceValues]
     #                   with listOfPerformanceValues = [amountOfTruePositives, amountOfFalsePositives, amountOfFalseNegatives]
     frameErrorDic = {}
+    frameErrorDicList = []
       
     def __init__(self, parameters = {}):
         super().__init__()
@@ -47,22 +51,28 @@ class TrackingPipeline(ABC):
             print('Parameters: ' + str(otherParameter) + ' -> ' + str(value))
             self.parameters[otherParameter] = value
         
-        #create video stream
-        if os.path.exists(self.parameters.get('PARAM_filePathVideo')):
-            self.cap = cv2.VideoCapture(self.parameters.get('PARAM_filePathVideo'))
+        if not self.parameters.get('PARAM_massVideoAnalysis'):
+            #create video stream
+            if os.path.exists(self.parameters.get('PARAM_filePathVideo')):
+                self.videoAnnotationPathList.append([self.parameters.get('PARAM_filePathVideo'), self.parameters.get('PARAM_folderPathAnnotation')])
+            else:
+                raise OSError('Error while trying to open the video file: ' + self.parameters.get('PARAM_filePathVideo'))
+        else:
+            #fetch all *.avi files in the given folder
+            for filename in os.listdir(self.parameters.get('PARAM_folderPathAnnotation')):
+                if filename.endswith('.avi'):
+                    fullname = os.path.join(self.parameters.get('PARAM_filePathVideo'), filename)
+                    
+                    #try to fetch the annotation folder corresponding to the video name from the 'PARAM_folderPathAnnotation'
+                    nameWithoutExtension = os.path.splitext(fullname)[0]
+                    
+                    folderPath = os.path.join(self.parameters.get('PARAM_folderPathAnnotation'), nameWithoutExtension)
+                    if os.path.isdir(folderPath):
+                        self.videoAnnotationPathList.append([fullname, folderPath])
+                    else:
+                        print('Found video ' + filename + ', but ' + str(folderPath) + ' is not a viable folder...')
             
-            print('Loading video from ' + self.parameters.get('PARAM_filePathVideo') + ' ...')
-        else:
-            raise OSError('Error while trying to open the video file: ' + self.parameters.get('PARAM_filePathVideo'))
-        
-        #read and fetch annotations
-        if os.path.isdir(self.parameters.get('PARAM_folderPathAnnotation')):
-            print('Loading annotations from folder ' + self.parameters.get('PARAM_folderPathAnnotation') + ' ...')
-        
-            self.loadBoundingBoxes(self.parameters.get('PARAM_folderPathAnnotation'))
-        else:
-            raise OSError('Error while trying to open the folder: ' + self.parameters.get('PARAM_folderPathAnnotation'))
-        
+        print('----- Found the following videos and annotation folders:\n' + str(self.videoAnnotationPathList))
         
     #creates the default settings for all parameters
     def createDefaultParameters(self):
@@ -72,9 +82,10 @@ class TrackingPipeline(ABC):
             'PARAM_enforceDifferenceBetweenMaras1And2': False,
             #PARAM_massVideoAnalysis = If true, it will analyse all videos in a given folder 'PARAM_filePathVideo' and its subfolders while trying to find fitting annotations for each video in ''PARAM_folderPathAnnotation' and its subfolders for each video
             #   If false, please set 'PARAM_filePathVideo' and 'PARAM_folderPathAnnotation' correctly.
-            'PARAM_VideoAnalysis': False,
-            #PARAM_filePathVideo should point to a folder if 'PARAM_filePathVideossVideoAnalysis' is true
+            'PARAM_massVideoAnalysis': False,
+            #PARAM_filePathVideo should point to a folder where the videos are located if 'PARAM_massVideoAnalysis' is true
             'PARAM_filePathVideo': 'video.avi',
+            #PARAM_folderPathAnnotation points to the folder where in its subfolders the *.xml annotations are located if 'PARAM_massVideoAnalysis' is true
             'PARAM_folderPathAnnotation': '.\annotation'
         }
         
@@ -82,6 +93,8 @@ class TrackingPipeline(ABC):
         
     #load bounding boxes from annotations
     def loadBoundingBoxes(self, annotationFolder):
+        boundingBoxDic = {}
+    
         if annotationFolder is not None:
             for filename in os.listdir(annotationFolder):
                 if filename.endswith('.xml'):
@@ -90,10 +103,12 @@ class TrackingPipeline(ABC):
                     
                     #some regex to extract the frameNumber
                     frameNumber = int(re.findall(r'\d+', tree.find('filename').text)[0])
-                    self.boundingBoxes[frameNumber] = tree
+                    boundingBoxDic[frameNumber] = tree
                     
                     print('Found annotation for frame #' + str(frameNumber))
     
+        return boundingBoxDic
+        
     #returns the video capture object
     def getCap(self):
         return self.cap
@@ -149,97 +164,164 @@ class TrackingPipeline(ABC):
     
     #the main tracking process
     def runPipeline(self):
+                
         start_pipeline = timer()
-    
-        while(1):          
-            frame = self.fetchFrame()    
+                
+        #cycle through all videos and feed them into the cap
+        for videoPath, annotationFolderPath in self.videoAnnotationPathList:
+            self.cap = cv2.VideoCapture(videoPath)
+                        
+            print('----- Loading video from ' + videoPath + ' ...')
+          
+            print('----- ... Starting to fetch annotations from folder ' + annotationFolderPath + ' ...')
             
-            if frame is not None:                   
-                #get annotation (XML-Tree) for current frame as an dictionary object or None if there is no annotation
-                annotationForCurrentFrame = self.boundingBoxes.get(self.frameCounter)
-                
-                #generate annotation with the user-implemented model
-                userGeneratedAnnotation = self.extractFrame(frame)
-                
-                #if there are bounding boxes in the frame annotations
-                if annotationForCurrentFrame is not None:
-                    #parse XML-Tree to Dictionary-Object
-                    annotationForCurrentFrame = self.annotationToData(annotationForCurrentFrame)
-                
-                    #draw the bounding box from the annotation into the frame
-                    frame = self.drawBoundingBoxesForAnimals(annotationForCurrentFrame, frame, False)
-                
-                #if there are bounding boxes that the user generated
-                if userGeneratedAnnotation is not None:
-                    #draw the bounding box from the annotation into the frame
-                    print('Generated annotation ' + str(userGeneratedAnnotation) + ' in frame ' + str(self.frameCounter))
-                    frame = self.drawBoundingBoxesForAnimals(userGeneratedAnnotation, frame, True)
-                    
-                if annotationForCurrentFrame is not None:
-                    currentError = self.calculateError(annotationForCurrentFrame, userGeneratedAnnotation)
-                    self.frameErrorDic[self.frameCounter] = currentError
-                    
-                    print('Found error of ' + str(currentError) + ' for frame #' + str(self.frameCounter) + '.');
-                
-                cv2.imshow("Annotated Frame", frame)  
-                
-                k = cv2.waitKey(30) & 0xff
-                if k == 27:
-                    break
-            else:
-                break
+            boundingBoxDic = self.loadBoundingBoxes(annotationFolderPath)
         
-        #print all the error into a log file
+            #generate an empty dictionary with error-frame descriptions:
+            frameErrorDic = {}
+            
+            #we start to count from frame 0 every time
+            currentFrameCounter = 0
+        
+            while(1):          
+                frame = self.fetchFrame()    
+                
+                if frame is not None:         
+
+                    currentFrameCounter += 1
+                    #get annotation (XML-Tree) for current frame as an dictionary object or None if there is no annotation
+                    annotationForCurrentFrame = boundingBoxDic.get(currentFrameCounter)
+                    
+                    #generate annotation with the user-implemented model
+                    userGeneratedAnnotation = self.extractFrame(frame)
+                    
+                    #if there are bounding boxes in the frame annotations
+                    if annotationForCurrentFrame is not None:
+                        #parse XML-Tree to Dictionary-Object
+                        annotationForCurrentFrame = self.annotationToData(annotationForCurrentFrame)
+                    
+                        #draw the bounding box from the annotation into the frame
+                        frame = self.drawBoundingBoxesForAnimals(annotationForCurrentFrame, frame, False)
+                    
+                    #if there are bounding boxes that the user generated
+                    if userGeneratedAnnotation is not None:
+                        #draw the bounding box from the annotation into the frame
+                        print('Generated annotation ' + str(userGeneratedAnnotation) + ' in frame ' + str(currentFrameCounter))
+                        frame = self.drawBoundingBoxesForAnimals(userGeneratedAnnotation, frame, True)
+                        
+                    if annotationForCurrentFrame is not None:
+                        currentError = self.calculateError(annotationForCurrentFrame, userGeneratedAnnotation)
+                        frameErrorDic[currentFrameCounter] = currentError
+                        
+                        print('Found error of ' + str(currentError) + ' for frame #' + str(currentFrameCounter) + '.');
+                    
+                    cv2.imshow("Annotated Frame", frame)  
+                    
+                    k = cv2.waitKey(30) & 0xff
+                    if k == 27:
+                        break
+                else:
+                    break
+            
+            #add the frameErrorDic to our list of dictionaries for later analysis:
+            self.frameErrorDicList.append([videoPath, frameErrorDic])
+                
+            cv2.destroyAllWindows()
+                
         end_pipeline = timer()
         
-        logFilePath = self.parameters.get('PARAM_filePathVideo') + '_' + datetime.now().strftime("%d%m%Y_%H%M%S") + '_log.txt'
+        logFilePath = self.parameters.get('PARAM_folderPathAnnotation') + '\\' + datetime.now().strftime("%d%m%Y_%H%M%S") + '_log.txt'
+        #print all the error into a log file
         self.writeLog(logFilePath, end_pipeline-start_pipeline)
-        
-        cv2.destroyAllWindows()
     
     def writeLog(self, logFilePath, elapsedTime):
+        #for calculating stats througout all videos
         logFileContent = ''
-        averageError = 0
-        tps = 0
-        fps = 0
-        fns = 0
-        
-        for errorFrame in self.frameErrorDic.keys(): 
-            errorSummary = self.frameErrorDic.get(errorFrame)
+        total_averageError = 0
+        total_tps = 0
+        total_fps = 0
+        total_fns = 0
+        total_error_frames = 0
             
-            tps += errorSummary[1][0]
-            fps += errorSummary[1][1]
-            fns += errorSummary[1][2]
+        #cycle through all single videos
+        for videoPath, frameErrorDic in self.frameErrorDicList:
+            averageError = 0
+            tps = 0
+            fps = 0
+            fns = 0
             
-            logFileContent += ('#' + str(errorFrame) 
-                + ' TP=' + str(errorSummary[1][0]) 
-                + ' FP=' + str(errorSummary[1][1]) 
-                + ' FN=' + str(errorSummary[1][2]) 
-                + ' TotalError=' + str(errorSummary[0]) + '\n')
+            for errorFrame in frameErrorDic.keys(): 
+                errorSummary = frameErrorDic.get(errorFrame)
                 
-            averageError += errorSummary[0]
+                tps += errorSummary[1][0]
+                fps += errorSummary[1][1]
+                fns += errorSummary[1][2]
+                
+                #ignore the frame-by-frame analysis for mass video analysis
+                if not self.parameters.get('PARAM_massVideoAnalysis'):
+                    logFileContent += ('#' + str(errorFrame) 
+                        + ' TP=' + str(errorSummary[1][0]) 
+                        + ' FP=' + str(errorSummary[1][1]) 
+                        + ' FN=' + str(errorSummary[1][2]) 
+                        + ' TotalError=' + str(errorSummary[0]) + '\n')
+                    
+                averageError += errorSummary[0]
+            
+            numberOfErrorEntries = len(frameErrorDic.keys())
+            
+            #we may have a division by zero: the +1 does not matter since the error is only used as a relative measure
+            averageErrorResult = 'not defined'
+            if numberOfErrorEntries > 0:
+                #remember them for calculating the total score for ALL videos
+                total_averageError += averageError
+                total_error_frames += numberOfErrorEntries
+                
+                averageErrorResult = averageError / numberOfErrorEntries
+            
+            #dodge another division by zero mistake, which can appear if we have 0 TPs
+            fScore = 'not defined'
+            if tps > 0:
+                fScore = tps / (tps + 0.5*(fps+fns))
         
-        numberOfErrorEntries = len(self.frameErrorDic.keys())
+            total_tps += tps
+            total_fps += fps
+            total_fns += fns
         
-        #we may have a division by zero: the +1 does not matter since the error is only used as a relative measure
-        averageErrorResult = 'not defined'
-        if numberOfErrorEntries > 0:
-            averageErrorResult = averageError / len(self.frameErrorDic.keys())
-        
-        #dodge another division by zero mistake, which can appear if we have 0 TPs
-        fScore = 'not defined'
-        if tps > 0:
-            fScore = tps / (tps + 0.5*(fps+fns))
-        
-        with open(logFilePath, 'w') as logFile:
-            logFile.write('AverageError=' + str(averageErrorResult) + '\n' 
+            #logFileContent for single video analysis
+            logFileContent = (logFileContent + '\n'
+                + '--------------------------------\n'
+                + '----- VIDEO=' + videoPath + '\n'
+                + 'AverageError=' + str(averageErrorResult) + '\n' 
                 + 'TruePositives=' + str(tps) + '\n'  
                 + 'FalsePositives=' + str(fps) + '\n'
                 + 'FalseNegatives=' + str(fns) + '\n'
-                + 'F-Score=' + str(fScore) + '\n'
+                + 'F-Score=' + str(fScore) + '\n')
+        
+        #paste the culmination of all video analysis into a single analysis, add all the single video analysis and dump the entire thing
+        with open(logFilePath, 'w') as logFile:
+            #dodge division by zero
+            if total_error_frames > 0:
+                total_averageError = total_averageError / total_error_frames
+            else:
+                total_averageError = 'not defined'
+            
+            #same here
+            fScore = 'not defined'
+            if tps > 0:
+                fScore = total_tps / (total_tps + 0.5*(total_fps+total_fns))
+            
+            #ignore cross-video analysis section if we only have a single video
+            #if self.parameters.get('PARAM_massVideoAnalysis')):
+            logFileContent = ('TotalAverageError=' + str(total_averageError) + '\n' 
+                + 'TotalTruePositives=' + str(total_tps) + '\n'  
+                + 'TotalFalsePositives=' + str(total_fps) + '\n'
+                + 'TotalFalseNegatives=' + str(total_fns) + '\n'
+                + 'TotalF-Score=' + str(fScore) + '\n'
                 + 'FramesPerSecond=' + str(self.frameCounter/elapsedTime) + '\n\n'
-                + 'Parameters=' + str(self.parameters) + '\n\n'
+                + 'Parameters=' + str(self.parameters) + '\n\n\n'
                 + logFileContent)
+        
+            logFile.write(logFileContent)
             
         print('Log file was written to \"' + logFilePath + '\"')   
         

@@ -173,8 +173,11 @@ class testPipeline(TrackingPipeline):
         return labelDictionary
         
 myParameters = {
-    'PARAM_filePathVideo': 'D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7.avi',
-    'PARAM_folderPathAnnotation': 'D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7'
+    #'PARAM_filePathVideo': 'D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7.avi',
+    #'PARAM_folderPathAnnotation': 'D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7',
+    'PARAM_filePathVideo': 'D:\cv_praktikum\inside',
+    'PARAM_folderPathAnnotation': 'D:\cv_praktikum\inside',
+    'PARAM_massVideoAnalysis': True
 }
             
 myTestPipeline = testPipeline(parameters = myParameters)

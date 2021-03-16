@@ -26,6 +26,9 @@ Pipeline:
 '''
 
 class TrackingPipeline(ABC):  
+    #parameters for all kind of functions
+    parameters = {}
+
     #boundingBoxes: dictionary with key=frame -> value=annotation as XML-Tree
     boundingBoxes = {}
     frameCounter = 0
@@ -33,27 +36,49 @@ class TrackingPipeline(ABC):
     #frameErrorDic: dictionary with key=frame -> value=[calculated error between generated/annotated bounding boxes, listOfPerformanceValues]
     #                   with listOfPerformanceValues = [amountOfTruePositives, amountOfFalsePositives, amountOfFalseNegatives]
     frameErrorDic = {}
-    
-    
-    def __init__(self, filePathVideo, folderPathAnnotation):
+      
+    def __init__(self, parameters = {}):
         super().__init__()
         
+        #load default parameters and then update them based on given parameter settings
+        self.parameters = self.createDefaultParameters()
+        for otherParameter in parameters.keys():
+            value = parameters.get(otherParameter)
+            print('Parameters: ' + str(otherParameter) + ' -> ' + str(value))
+            self.parameters[otherParameter] = value
+        
         #create video stream
-        if os.path.exists(filePathVideo):
-            self.filePathVideo = filePathVideo 
-            self.cap = cv2.VideoCapture(filePathVideo)
+        if os.path.exists(self.parameters.get('PARAM_filePathVideo')):
+            self.cap = cv2.VideoCapture(self.parameters.get('PARAM_filePathVideo'))
             
-            print('Loading video from ' + filePathVideo + ' ...')
+            print('Loading video from ' + self.parameters.get('PARAM_filePathVideo') + ' ...')
         else:
-            raise OSError('Error while trying to open the video file: ' + filePathVideo)
+            raise OSError('Error while trying to open the video file: ' + self.parameters.get('PARAM_filePathVideo'))
         
         #read and fetch annotations
-        if os.path.isdir(folderPathAnnotation):
-            print('Loading annotations from folder ' + folderPathAnnotation + ' ...')
+        if os.path.isdir(self.parameters.get('PARAM_folderPathAnnotation')):
+            print('Loading annotations from folder ' + self.parameters.get('PARAM_folderPathAnnotation') + ' ...')
         
-            self.loadBoundingBoxes(folderPathAnnotation)
+            self.loadBoundingBoxes(self.parameters.get('PARAM_folderPathAnnotation'))
         else:
-            raise OSError('Error while trying to open the folder: ' + folderPathAnnotation)
+            raise OSError('Error while trying to open the folder: ' + self.parameters.get('PARAM_folderPathAnnotation'))
+        
+        
+    #creates the default settings for all parameters
+    def createDefaultParameters(self):
+        defaultSettings = {
+            #PARAM_enforceDifferenceBetweenMaras = If true, mara1 and mara2 will be differentiated and responsively get an error score
+            #   For false, mara1 and mara2 will not cause an mismatch and their error score will be calculated (if there are mara1&mara2 bb in both pictures, match them so that they have the lowest error)
+            'PARAM_enforceDifferenceBetweenMaras1And2': False,
+            #PARAM_massVideoAnalysis = If true, it will analyse all videos in a given folder 'PARAM_filePathVideo' and its subfolders while trying to find fitting annotations for each video in ''PARAM_folderPathAnnotation' and its subfolders for each video
+            #   If false, please set 'PARAM_filePathVideo' and 'PARAM_folderPathAnnotation' correctly.
+            'PARAM_VideoAnalysis': False,
+            #PARAM_filePathVideo should point to a folder if 'PARAM_filePathVideossVideoAnalysis' is true
+            'PARAM_filePathVideo': 'video.avi',
+            'PARAM_folderPathAnnotation': '.\annotation'
+        }
+        
+        return defaultSettings
         
     #load bounding boxes from annotations
     def loadBoundingBoxes(self, annotationFolder):
@@ -167,7 +192,7 @@ class TrackingPipeline(ABC):
         #print all the error into a log file
         end_pipeline = timer()
         
-        logFilePath = self.filePathVideo + '_' + datetime.now().strftime("%d%m%Y_%H%M%S") + '_log.txt'
+        logFilePath = self.parameters.get('PARAM_filePathVideo') + '_' + datetime.now().strftime("%d%m%Y_%H%M%S") + '_log.txt'
         self.writeLog(logFilePath, end_pipeline-start_pipeline)
         
         cv2.destroyAllWindows()
@@ -194,15 +219,26 @@ class TrackingPipeline(ABC):
                 
             averageError += errorSummary[0]
         
-        averageError = averageError / len(self.frameErrorDic.keys())
+        numberOfErrorEntries = len(self.frameErrorDic.keys())
+        
+        #we may have a division by zero: the +1 does not matter since the error is only used as a relative measure
+        averageErrorResult = 'not defined'
+        if numberOfErrorEntries > 0:
+            averageErrorResult = averageError / len(self.frameErrorDic.keys())
+        
+        #dodge another division by zero mistake, which can appear if we have 0 TPs
+        fScore = 'not defined'
+        if tps > 0:
+            fScore = tps / (tps + 0.5*(fps+fns))
         
         with open(logFilePath, 'w') as logFile:
-            logFile.write('AverageError=' + str(averageError) + '\n' 
+            logFile.write('AverageError=' + str(averageErrorResult) + '\n' 
                 + 'TruePositives=' + str(tps) + '\n'  
                 + 'FalsePositives=' + str(fps) + '\n'
                 + 'FalseNegatives=' + str(fns) + '\n'
-                + 'F-Score=' + str(tps / (tps + 0.5*(fps+fns))) + '\n'
+                + 'F-Score=' + str(fScore) + '\n'
                 + 'FramesPerSecond=' + str(self.frameCounter/elapsedTime) + '\n\n'
+                + 'Parameters=' + str(self.parameters) + '\n\n'
                 + logFileContent)
             
         print('Log file was written to \"' + logFilePath + '\"')   
@@ -214,14 +250,11 @@ class TrackingPipeline(ABC):
     #
     #parameter: annotationBoxes = the bounding box information of the (true) annotated labels
     #           generatedBoxes = the bounding box information of the user-generated labels
-    #           enforceDifferenceBetweenMaras = If true, mara1 and mara2 will be differentiated and responsively get an error score
-    #                                           For false, mara1 and mara2 will not cause an mismatch and their error score will be calculated (if there are mara1&mara2 bb in both pictures, match them so that they have the lowest error)
-    #
     #                                           "mara" tag should only appear as a substitute to "mara1" or "mara2"; never in combination with one of them
     #                                           >   If "mara" appears in both pictures, calculate the respective error
     #                                           >   If "mara" appears in one picture and "mara1"/"mara2" in the other, match to that
     #                                           >   If "mara" appears in one picture and "mara1","mara2" in the other, only calculate the lower error
-    def calculateError(self, annotationBoxes, generatedBoxes, enforceDifferenceBetweenMaras = True):
+    def calculateError(self, annotationBoxes, generatedBoxes):
         error = 0
         
         #if we match stuff which is not included in the pure intersection of both dictionary keys

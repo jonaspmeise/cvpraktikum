@@ -180,7 +180,7 @@ myParameters = {
     'PARAM_massVideoAnalysis': True
 }
             
-for i in range(1,15,2):
+for i in range(6,8,1):
     myParameters = {
         #'PARAM_filePathVideo': 'D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7.avi',
         #'PARAM_folderPathAnnotation': 'D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7',

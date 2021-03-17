@@ -72,7 +72,7 @@ class TrackingPipeline(ABC):
                     else:
                         print('Found video ' + filename + ', but ' + str(folderPath) + ' is not a viable folder...')
             
-        print('----- Found the following videos and annotation folders:\n' + str(self.videoAnnotationPathList))
+        print('----- Found ' + str(len(self.videoAnnotationPathList)) + ' videos and annotation folders:\n' + str(self.videoAnnotationPathList))
         
     #creates the default settings for all parameters
     def createDefaultParameters(self):
@@ -102,7 +102,7 @@ class TrackingPipeline(ABC):
                     tree = ET.parse(fullname)
                     
                     #some regex to extract the frameNumber
-                    frameNumber = int(re.findall(r'\d+', tree.find('filename').text)[0])
+                    frameNumber = int(re.findall(r'\d+', tree.find('filename').text.split("frame")[1])[0])
                     boundingBoxDic[frameNumber] = tree
                     
                     print('Found annotation for frame #' + str(frameNumber))
@@ -322,6 +322,13 @@ class TrackingPipeline(ABC):
                 + logFileContent)
         
             logFile.write(logFileContent)
+            
+        self.parameters = {}
+        self.videoAnnotationPathList = []
+        self.boundingBoxes = {}
+        self.frameCounter = 0      
+        self.frameErrorDic = {}
+        self.frameErrorDicList = []
             
         print('Log file was written to \"' + logFilePath + '\"')   
         

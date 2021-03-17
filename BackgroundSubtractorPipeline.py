@@ -19,7 +19,7 @@ class testPipeline(TrackingPipeline):
         
         self.fgbg = cv2.bgsegm.createBackgroundSubtractorMOG()
         #This feature is bugged...
-        self.fgbg.setHistory(self.parameters.get('PARAM_BGSHistory'))
+        #self.fgbg.setHistory(self.parameters.get('PARAM_BGSHistory'))
         
         self.previousBoundingBox = None
 
@@ -180,5 +180,15 @@ myParameters = {
     'PARAM_massVideoAnalysis': True
 }
             
-myTestPipeline = testPipeline(parameters = myParameters)
-myTestPipeline.runPipeline()
+for i in range(1,15,2):
+    myParameters = {
+        #'PARAM_filePathVideo': 'D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7.avi',
+        #'PARAM_folderPathAnnotation': 'D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7',
+        'PARAM_filePathVideo': 'D:\cv_praktikum\inside',
+        'PARAM_folderPathAnnotation': 'D:\cv_praktikum\inside',
+        'PARAM_massVideoAnalysis': True,
+        'PARAM_initialGaussBlurKernelSize': i
+    }
+    
+    myTestPipeline = testPipeline(parameters = myParameters)
+    myTestPipeline.runPipeline()

@@ -19,7 +19,7 @@ class testPipeline(TrackingPipeline):
         
         self.fgbg = cv2.bgsegm.createBackgroundSubtractorMOG()
         #This feature is bugged...
-        #self.fgbg.setHistory(self.parameters.get('PARAM_BGSHistory'))
+        self.fgbg.setHistory(self.parameters.get('PARAM_BGSHistory'))
         
         self.previousBoundingBox = None
 
@@ -177,18 +177,16 @@ myParameters = {
     #'PARAM_folderPathAnnotation': 'D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7',
     'PARAM_filePathVideo': 'D:\cv_praktikum\inside',
     'PARAM_folderPathAnnotation': 'D:\cv_praktikum\inside',
-    'PARAM_massVideoAnalysis': True
+    'PARAM_massVideoAnalysis': True,
+    #best parameter!
+    'PARAM_initialGaussBlurKernelSize': 7,
+    #best parameter!
+    'PARAM_BGSHistory': 200,
+    #best parameter!
+    'PARAM_filterStrength': 0,
+    #best parameter!
+    'PARAM_smoothedBoxAcceptanceFactor': 10
 }
-            
-for i in range(6,8,1):
-    myParameters = {
-        #'PARAM_filePathVideo': 'D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7.avi',
-        #'PARAM_folderPathAnnotation': 'D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7',
-        'PARAM_filePathVideo': 'D:\cv_praktikum\inside',
-        'PARAM_folderPathAnnotation': 'D:\cv_praktikum\inside',
-        'PARAM_massVideoAnalysis': True,
-        'PARAM_initialGaussBlurKernelSize': i
-    }
-    
-    myTestPipeline = testPipeline(parameters = myParameters)
-    myTestPipeline.runPipeline()
+
+myTestPipeline = testPipeline(parameters = myParameters)
+myTestPipeline.runPipeline()

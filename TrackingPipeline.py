@@ -44,6 +44,8 @@ class TrackingPipeline(ABC):
     def __init__(self, parameters = {}):
         super().__init__()
         
+        print('ERROR TEST, VIDEOANNOTATIONPATH SO FAR SHOULD BE EMPTY: ' + str(self.videoAnnotationPathList))
+        
         #load default parameters and then update them based on given parameter settings
         self.parameters = self.createDefaultParameters()
         for otherParameter in parameters.keys():
@@ -105,7 +107,7 @@ class TrackingPipeline(ABC):
                     frameNumber = int(re.findall(r'\d+', tree.find('filename').text.split("frame")[1])[0])
                     boundingBoxDic[frameNumber] = tree
                     
-                    print('Found annotation for frame #' + str(frameNumber))
+                    #print('Found annotation for frame #' + str(frameNumber))
     
         return boundingBoxDic
         
@@ -206,14 +208,14 @@ class TrackingPipeline(ABC):
                     #if there are bounding boxes that the user generated
                     if userGeneratedAnnotation is not None:
                         #draw the bounding box from the annotation into the frame
-                        print('Generated annotation ' + str(userGeneratedAnnotation) + ' in frame ' + str(currentFrameCounter))
+                        #print('Generated annotation ' + str(userGeneratedAnnotation) + ' in frame ' + str(currentFrameCounter))
                         frame = self.drawBoundingBoxesForAnimals(userGeneratedAnnotation, frame, True)
                         
                     if annotationForCurrentFrame is not None:
                         currentError = self.calculateError(annotationForCurrentFrame, userGeneratedAnnotation)
                         frameErrorDic[currentFrameCounter] = currentError
                         
-                        print('Found error of ' + str(currentError) + ' for frame #' + str(currentFrameCounter) + '.');
+                        #print('Found error of ' + str(currentError) + ' for frame #' + str(currentFrameCounter) + '.');
                     
                     cv2.imshow("Annotated Frame", frame)  
                     
@@ -244,6 +246,8 @@ class TrackingPipeline(ABC):
         total_error_frames = 0
             
         #cycle through all single videos
+        #print('frameErrorDicList: ' + str(self.frameErrorDicList)),
+        
         for videoPath, frameErrorDic in self.frameErrorDicList:
             averageError = 0
             tps = 0
@@ -268,6 +272,7 @@ class TrackingPipeline(ABC):
                 averageError += errorSummary[0]
             
             numberOfErrorEntries = len(frameErrorDic.keys())
+            print('found ' +  str(numberOfErrorEntries) + ' ...')
             
             #we may have a division by zero: the +1 does not matter since the error is only used as a relative measure
             averageErrorResult = 'not defined'
@@ -283,6 +288,7 @@ class TrackingPipeline(ABC):
             if tps > 0:
                 fScore = tps / (tps + 0.5*(fps+fns))
         
+            print(total_tps)
             total_tps += tps
             total_fps += fps
             total_fns += fns
@@ -323,12 +329,12 @@ class TrackingPipeline(ABC):
         
             logFile.write(logFileContent)
             
-        self.parameters = {}
-        self.videoAnnotationPathList = []
-        self.boundingBoxes = {}
-        self.frameCounter = 0      
-        self.frameErrorDic = {}
-        self.frameErrorDicList = []
+        self.parameters.clear()
+        self.videoAnnotationPathList.clear()
+        self.boundingBoxes.clear()
+        self.frameCounter = 0    
+        self.frameErrorDic.clear
+        self.frameErrorDicList.clear()
             
         print('Log file was written to \"' + logFilePath + '\"')   
         
@@ -357,9 +363,9 @@ class TrackingPipeline(ABC):
         falseNegatives = len(annotationBoxes) - len(truePositives)
         falsePositives = len(generatedBoxes) - len(truePositives)
         
-        print('generatedBoxes : ' + str(generatedBoxes.keys()))
-        print('true annotationBoxes : ' + str(annotationBoxes.keys()))
-        print('True Positives => ' + str(truePositives))
+        #print('generatedBoxes : ' + str(generatedBoxes.keys()))
+        #print('true annotationBoxes : ' + str(annotationBoxes.keys()))
+        #print('True Positives => ' + str(truePositives))
         
         #calculate the mara-mara1-mara2 mismatches manually, only if XOR appearance as keys in both bounding boxes
         #TODO: comment: very ugly code, but I don't think there is an easy way to solve this

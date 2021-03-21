@@ -10,17 +10,14 @@
     + [Multiple videos](#multiple-videos)
 
 # General
-This github repository contains the programming project which accompanies the computer vision project *Mara & Eisenbär* in the winter semester 2020/2021 at the WWU Münster.
+This github repository contains the programming project which accompanies the computer vision project *Mara & Ameisenbär* in the winter semester 2020/2021 at the WWU Münster.
 
 ## Important Information
 
 The project requires Python and the following libraries in order to be executed:
 ``
-
-Numpy
-
-CV2
-
+Numpy,
+CV2,...
 ``
 
 # Setup

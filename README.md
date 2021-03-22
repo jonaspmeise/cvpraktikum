@@ -22,7 +22,7 @@ CV2
 
 The project has been compiled with Python 3.8.2
 
-**Import information:** If you run the program in a Linux environment, line 235 of ``TrackingPipeline.py`` should be changed to match the environment requirements for absolute paths. Please change the ``\\`` to a ``/``
+**Import information:** If you run the program in a Linux environment, line 235 of ``TrackingPipeline.py`` should be changed to match the environment requirements for absolute paths. Please change the ``\\`` to a ``/`` in that line.
 
 # Setup
 The setup for this project is very straightforward. In order to run it, you require \*.avi videos with the format 1920x1080. They should be part of the video corpus acquired from the Zoo Münster, although running the project on other source material is possible, too.

@@ -1,0 +1,74 @@
+TotalAverageError=782.2257477243173
+TotalTruePositives=3845
+TotalFalsePositives=0
+TotalFalseNegatives=0
+TotalF-Score=1.0
+FramesPerSecond=21.481477997244244
+
+Parameters={'PARAM_maxNumberOfBoundingBoxes': 1, 'PARAM_scalePercentage': 20, 'PARAM_lingerFrameCount': 150, 'PARAM_filterStrength': 0, 'PARAM_BGSHistory': 50, 'PARAM_initialGaussBlurKernelSize': 7, 'PARAM_smoothedBoxAcceptanceFactor': 5, 'PARAM_filePathVideo': 'D:\\cv_praktikum\\inside', 'PARAM_folderPathAnnotation': 'D:\\cv_praktikum\\inside', 'PARAM_massVideoAnalysis': True}
+
+
+
+--------------------------------
+----- VIDEO=D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7.avi
+AverageError=545.8545454545455
+TruePositives=55
+FalsePositives=0
+FalseNegatives=0
+F-Score=1.0
+
+--------------------------------
+----- VIDEO=D:\cv_praktikum\inside\ch01_20200909140552_analysed_part_4.avi
+AverageError=633.5982783357246
+TruePositives=697
+FalsePositives=0
+FalseNegatives=0
+F-Score=1.0
+
+--------------------------------
+----- VIDEO=D:\cv_praktikum\inside\ch01_20200909140552_analysed_part_7.avi
+AverageError=860.04396843292
+TruePositives=887
+FalsePositives=0
+FalseNegatives=0
+F-Score=1.0
+
+--------------------------------
+----- VIDEO=D:\cv_praktikum\inside\ch01_20200909143936_analysed_part_16.avi
+AverageError=553.9446902654868
+TruePositives=452
+FalsePositives=0
+FalseNegatives=0
+F-Score=1.0
+
+--------------------------------
+----- VIDEO=D:\cv_praktikum\inside\ch01_20200909151320_analysed_part_1.avi
+AverageError=1415.5353728489483
+TruePositives=523
+FalsePositives=0
+FalseNegatives=0
+F-Score=1.0
+
+--------------------------------
+----- VIDEO=D:\cv_praktikum\inside\ch01_20200910080543_analysed_part_6.avi
+AverageError=580.1257668711656
+TruePositives=652
+FalsePositives=0
+FalseNegatives=0
+F-Score=1.0
+
+--------------------------------
+----- VIDEO=D:\cv_praktikum\inside\ch02_20200908182859_analysed_part_12.avi
+AverageError=662.1898238747553
+TruePositives=511
+FalsePositives=0
+FalseNegatives=0
+F-Score=1.0
+
+--------------------------------
+----- VIDEO=D:\cv_praktikum\inside\ch02_20200908182859_analysed_part_2.avi
+AverageError=968.0882352941177
+TruePositives=68
+FalsePositives=0
+FalseNegatives=0
+F-Score=1.0

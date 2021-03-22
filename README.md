@@ -68,7 +68,7 @@ Here is an example call:
 ```
 myParameters = {
     'PARAM_filePathVideo': 'D:\cv_praktikum\inside\',
-    'PARAM_folderPathAnnotation': 'D:\cv_praktikum\inside\ch01_20200909115056_analysed_part_7',
+    'PARAM_folderPathAnnotation': 'D:\cv_praktikum\inside\',
     'PARAM_massVideoAnalysis': True,
 }
 

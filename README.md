@@ -20,6 +20,8 @@ Numpy
 CV2
 ```
 
+The project has been compiled with Python 3.8.2
+
 # Setup
 The setup for this project is very straightforward. In order to run it, you require \*.avi videos with the format 1920x1080. They should be part of the video corpus acquired from the Zoo Münster, although running the project on other source material is possible, too.
 
